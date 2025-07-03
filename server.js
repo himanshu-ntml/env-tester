@@ -17,20 +17,21 @@ app.get("/status", (_, res) => {
   }
 });
 
-app.post("/start-sync", (_, res) => {
+app.post("/dump", (_, res) => {
   if (isRunning) {
     return res.status(409).json({ message: "Sync already in progress" });
   }
 
   isRunning = true;
 
-  exec("sh /app/sync.sh", (error, stdout, stderr) => {
+  exec("sh /app/sync.sh dump", (error, stdout, stderr) => {
     isRunning = false;
+
     if (error) {
       fs.writeFileSync(
         "/app/status.json",
         JSON.stringify({
-          state: `❌ Error: ${error.message}`,
+          state: `❌ Dump failed: ${error.message}`,
           updatedAt: new Date().toISOString(),
         })
       );
@@ -42,7 +43,46 @@ app.post("/start-sync", (_, res) => {
     if (stderr) console.error(`stderr: ${stderr}`);
   });
 
-  res.status(202).json({ message: "Sync started" });
+  res.status(202).json({ message: "Production dump started" });
+});
+
+app.post("/restore", (req, res) => {
+  const target = req.query.target;
+
+  if (!target || !["dev", "staging"].includes(target)) {
+    return res
+      .status(400)
+      .json({ message: "Missing or invalid ?target=dev|staging" });
+  }
+
+  if (isRunning) {
+    return res
+      .status(409)
+      .json({ message: "Another operation is already in progress" });
+  }
+
+  isRunning = true;
+
+  exec(`sh /app/sync.sh ${target}`, (error, stdout, stderr) => {
+    isRunning = false;
+
+    if (error) {
+      fs.writeFileSync(
+        "/app/status.json",
+        JSON.stringify({
+          state: `❌ Restore to ${target} failed: ${error.message}`,
+          updatedAt: new Date().toISOString(),
+        })
+      );
+      console.error(`exec error: ${error.message}`);
+      return;
+    }
+
+    console.log(`stdout: ${stdout}`);
+    if (stderr) console.error(`stderr: ${stderr}`);
+  });
+
+  res.status(202).json({ message: `Restore to ${target} started` });
 });
 
 app.listen(port, () => {
