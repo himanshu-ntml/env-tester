@@ -1,10 +1,14 @@
-FROM alpine:latest
+FROM node:18-alpine
 
-# Install bash
-RUN apk add --no-cache bash
+RUN apk add --no-cache bash postgresql-client
 
-# Add script
-COPY loop.sh /loop.sh
-RUN chmod +x /loop.sh
+WORKDIR /app
 
-CMD ["/loop.sh"]
+COPY server.js .
+COPY sync.sh .
+COPY status.json .
+
+RUN npm init -y && npm install express
+RUN chmod +x sync.sh
+
+CMD ["node", "server.js"]
