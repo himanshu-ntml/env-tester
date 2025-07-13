@@ -9,12 +9,14 @@ const AUTH_TOKEN = "uYpXW9r3vQtszKjMhLDcRAeF1NbVGoix"; // replace with your own
 
 let isRunning = false;
 
-// 🔒 Middleware to require token auth
 function requireAuth(req, res, next) {
-  const authHeader = req.headers["authorization"];
-  if (!authHeader || authHeader !== `Bearer ${AUTH_TOKEN}`) {
+  const token =
+    req.headers["authorization"]?.replace("Bearer ", "") || req.query.token;
+
+  if (token !== AUTH_TOKEN) {
     return res.status(401).json({ message: "Unauthorized" });
   }
+
   next();
 }
 
