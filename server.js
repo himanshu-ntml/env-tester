@@ -4,7 +4,19 @@ const { exec } = require("child_process");
 const app = express();
 const port = 3000;
 
+// 🔐 Static token (32-character random string)
+const AUTH_TOKEN = "uYpXW9r3vQtszKjMhLDcRAeF1NbVGoix"; // replace with your own
+
 let isRunning = false;
+
+// 🔒 Middleware to require token auth
+function requireAuth(req, res, next) {
+  const authHeader = req.headers["authorization"];
+  if (!authHeader || authHeader !== `Bearer ${AUTH_TOKEN}`) {
+    return res.status(401).json({ message: "Unauthorized" });
+  }
+  next();
+}
 
 app.get("/health", (_, res) => res.status(200).send("OK"));
 
@@ -17,7 +29,7 @@ app.get("/status", (_, res) => {
   }
 });
 
-app.post("/dump", (_, res) => {
+app.post("/dump", requireAuth, (_, res) => {
   if (isRunning) {
     return res.status(409).json({ message: "Sync already in progress" });
   }
@@ -46,7 +58,7 @@ app.post("/dump", (_, res) => {
   res.status(202).json({ message: "Production dump started" });
 });
 
-app.post("/restore", (req, res) => {
+app.post("/restore", requireAuth, (req, res) => {
   const target = req.query.target;
 
   if (!target || !["dev", "staging"].includes(target)) {
@@ -83,6 +95,23 @@ app.post("/restore", (req, res) => {
   });
 
   res.status(202).json({ message: `Restore to ${target} started` });
+});
+
+app.get("/download", requireAuth, (req, res) => {
+  const filePath = "/app/dumps/latest.dump.tar.gz"; // adjust path if needed
+
+  fs.access(filePath, fs.constants.F_OK, (err) => {
+    if (err) {
+      return res.status(404).json({ message: "Dump file not found" });
+    }
+
+    res.download(filePath, "latest-dump.tar.gz", (err) => {
+      if (err) {
+        console.error("Download error:", err);
+        res.status(500).send("Failed to download file");
+      }
+    });
+  });
 });
 
 app.listen(port, () => {
