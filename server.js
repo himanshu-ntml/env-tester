@@ -100,7 +100,7 @@ app.post("/restore", requireAuth, (req, res) => {
 });
 
 app.get("/download", requireAuth, (req, res) => {
-  const filePath = "/app/dumps/latest.dump.tar.gz"; // adjust path if needed
+  const filePath = "/tmp/prod.sql"; // adjust path if needed
 
   fs.access(filePath, fs.constants.F_OK, (err) => {
     if (err) {
